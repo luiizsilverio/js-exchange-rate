@@ -52,27 +52,17 @@ const currenciesEl = document.querySelector('[data-js="currencies-container"]')
 const APIkey = 'f175589178401b16e154dcc7'
 
 const getUrl = moeda => `https://v6.exchangerate-api.com/v6/${APIkey}/latest/${moeda}`
+let conversionRates = []
 
 const getListaMoedas = (selected = '') => {
-  const moedas = [
-    { sigla: "BRL", descricao: "Real Brasileiro"},
-    { sigla: "USD", descricao: "Dólar Americano"},
-    { sigla: "EUR", descricao: "Euro"},
-    { sigla: "AUD", descricao: "Dólar Australiano"},
-    { sigla: "CAD", descricao: "Dólar Canadense"},
-    { sigla: "ARS", descricao: "Dólar Argentino"},
-    { sigla: "CLP", descricao: "Peso Chileno"},
-    { sigla: "CNY", descricao: "Renminbi Chinês"},
-    { sigla: "PYG", descricao: "Guarany Paraguaio"},
-    { sigla: "GBP", descricao: "Libra Esterlina"},
-    { sigla: "ERR", descricao: "Moeda que não existe"},  
-  ]
-
-  return moedas.reduce((acc, {sigla, descricao }) => (
-    selected === sigla
-      ? `${ acc }<option value="${ sigla }" selected>${ descricao }</option>\n`
-      : `${ acc }<option value="${ sigla }">${ descricao }</option>\n`
+  const lista  = Object.keys(conversionRates)
+    .reduce((acc, item) => (
+      item === selected 
+        ? `${ acc }<option value="${ item }" selected>${ item }</option>\n`
+        : `${ acc }<option value="${ item }">${ item }</option>\n`
   ), '')
+
+  return lista
 }
 
 const getErrorMessage = errorType => ({
@@ -99,53 +89,60 @@ const showErrorMessage = (message) => {
   currenciesEl.insertAdjacentElement('afterend', div)  
 }
 
-const fetchCotacao = async (moedaDe, moedaPara) => {  
+const fetchCotacoes = async(moeda) => {
   try {
-    const response = await fetch(getUrl(moedaDe))
+    const response = await fetch(getUrl(moeda))
 
     if (!response.ok) {
       throw new Error('Sua conexão falhou.')
     }
 
     const objCota = await response.json()
-    
+    conversionRates = objCota.conversion_rates
+
+    console.log(conversionRates)
+
     if (objCota.result === 'error') {
       showErrorMessage(getErrorMessage(objCota['error-type']))
-      //throw new Error(getErrorMessage(objCota['error-type']))
-      return 0
+      return false
     }
 
-    return objCota.conversion_rates[moedaPara]
+    return true
   }
   catch (err) {
     showErrorMessage(err.message)
-    return 0
+    return false
   }
 }
 
-const converteValor = async event => {
-  const moedaDe = currencyFrom.value //kkk
-  const moedaPara = currencyTo.value
-  
-  const cotacao = await fetchCotacao(moedaDe, moedaPara)
+const converteValor = () => {
+  const moedaDe = currencyFrom.value
+  const moedaPara = currencyTo.value 
+  const cotacao = conversionRates[moedaPara]
   const valor = cotacao * quant.value
   
-  convertedValue.textContent = `${valor.toFixed(2)} ${moedaPara}`
-  pCotacao.textContent = `1 ${moedaDe} = ${cotacao.toFixed(2)} ${moedaPara}`
+  if (moedaDe || moedaPara) {
+    convertedValue.textContent = `${valor.toFixed(2)} ${moedaPara}`
+    pCotacao.textContent = `1 ${moedaDe} = ${cotacao.toFixed(2)} ${moedaPara}`
+  }
 }
 
-const initMoedas = async () => {
-
-}
-
-currencyFrom.addEventListener('input', converteValor)
+currencyFrom.addEventListener('input', (e) => {
+  fetchCotacoes(e.target.value)
+  .then(value => converteValor())
+})
 
 currencyTo.addEventListener('input', converteValor)
 
 quant.addEventListener('input', converteValor)
 
-currencyFrom.innerHTML = getListaMoedas("USD")
-currencyTo.innerHTML = getListaMoedas("BRL")
+function init() {
+  fetchCotacoes('USD')
+  .then(value => {
+    currencyFrom.innerHTML = getListaMoedas('USD')
+    currencyTo.innerHTML = getListaMoedas('BRL')
+    converteValor()
+  })
+}
 
-converteValor()
-
+init()
