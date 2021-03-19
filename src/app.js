@@ -148,3 +148,4 @@ currencyFrom.innerHTML = getListaMoedas("USD")
 currencyTo.innerHTML = getListaMoedas("BRL")
 
 converteValor()
+
